@@ -94,3 +94,60 @@
     path: /etc/rc.local
     state: absent
   when: proxmox_lxc_configure and rcfile.stat.exists and ((rcslurp.content | b64decode).splitlines() | length) <= 1
+
+- name: Remove libnfs-utils
+  tags: fcf
+  apt:
+    name: libnfs-utils
+    state: absent
+
+- ansible.builtin.apt:
+    clean: yes
+  tags: fcf
+  become: true
+
+- name: Remove logs
+  become: true
+  systemd:
+    name: systemd-journald
+    state: stopped
+    enabled: false
+  failed_when: false
+  tags: fcf
+
+- name: Remove /var/logs/{syslog* and /var/logs/pods/* if they exist
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  register: log_files
+  with_items:
+    - /var/log/syslog*
+    - /var/log/pods/
+    - /var/log/apt/
+  tags: fcf
+
+- name: Print log_files files
+  debug:
+    var: log_files
+  tags: fcf
+
+- name: Vacuum journal logs
+  command:
+    cmd: journalctl --vacuum-time=1s
+  register: vacuum_output
+  failed_when: vacuum_output.rc != 0
+  tags: fcf
+
+- name: Print vacuum output
+  debug:
+    var: vacuum_output.stdout_lines
+  tags: fcf
+
+- name: Reset systemd-journald to default configuration
+  become: true
+  systemd:
+    name: systemd-journald
+    state: started
+    enabled: true
+  tags: fcf
