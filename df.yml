@@ -1,0 +1,18 @@
+---
+- name: Perform df -h command
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Execute df -h command
+      command: df -h
+      register: df_output
+    - name: Display df output
+      debug:
+        var: df_output.stdout_lines
+
+    - name: Execute du -h command
+      shell: sudo du -h -d 6 / | sort -h | tail -n 10
+      register: du_output
+    - name: Display du output
+      debug:
+        var: du_output.stdout_lines
